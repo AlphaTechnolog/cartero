@@ -20,70 +20,77 @@ using Adw 1;
 
 template $CarteroWindow: Adw.ApplicationWindow {
   [content]
-  Box {
-    orientation: vertical;
+  Adw.OverlaySplitView {
+    sidebar: Adw.ToolbarView {
+      [top]
+      Adw.HeaderBar {}
+    };
 
-    Adw.HeaderBar {
-      [start]
-      Box {
-        spacing: 5;
+    content: Gtk.Box {
+      orientation: vertical;
 
-        Button {
-          action-name: "win.new";
-          icon-name: 'tab-new-symbolic';
-          tooltip-text: _("New");
-        }
+      Adw.HeaderBar {
+        [start]
+        Box {
+          spacing: 5;
 
-        Separator {}
+          Button {
+            action-name: "win.new";
+            icon-name: 'tab-new-symbolic';
+            tooltip-text: _("New");
+          }
 
-        Button open_dialog {
-          styles [
-            "flat"
-          ]
+          Separator {}
 
-          action-name: "win.open";
-          tooltip-text: _("Open");
+          Button open_dialog {
+            styles [
+              "flat"
+            ]
 
-          [child]
-          Box {
-            spacing: 5;
+            action-name: "win.open";
+            tooltip-text: _("Open");
 
-            Image {
-              icon-name: 'document-open-symbolic';
+            [child]
+            Box {
+              spacing: 5;
+
+              Image {
+                icon-name: 'document-open-symbolic';
+              }
+
+              Label {
+                label: _("Open");
+              }
             }
+          }
 
-            Label {
-              label: _("Open");
-            }
+          Button save_dialog {
+            action-name: "win.save";
+            icon-name: 'document-save-symbolic';
+            tooltip-text: _("Save");
           }
         }
 
-        Button save_dialog {
-          action-name: "win.save";
-          icon-name: 'document-save-symbolic';
-          tooltip-text: _("Save");
+        [title]
+        Label {
+          use-markup: true;
+          label: "<b>Cartero</b>";
+        }
+
+        [end]
+        MenuButton {
+          icon-name: "open-menu-symbolic";
+          primary: true;
+          menu-model: main_menu;
         }
       }
 
-      [title]
-      Label {
-        use-markup: true;
-        label: "<b>Cartero</b>";
+      Adw.TabBar tabs {
+        view: tabview;
       }
 
-      [end]
-      MenuButton {
-        icon-name: "open-menu-symbolic";
-        primary: true;
-        menu-model: main_menu;
-      }
-    }
-
-    Adw.TabBar tabs {
-      view: tabview;
-    }
-
-    Adw.TabView tabview {}
+      Adw.TabView tabview {}
+    };
   }
 }
 
