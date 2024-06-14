@@ -18,11 +18,15 @@
 subdir('icons')
 
 blueprint_files = [
+  'ui/collection_pane.blp',
   'ui/endpoint_pane.blp',
   'ui/main_window.blp',
   'ui/key_value_pane.blp',
   'ui/key_value_row.blp',
   'ui/response_panel.blp',
+  'ui/new_collection_window.blp',
+  'ui/sidebar.blp',
+  'ui/sidebar_row.blp',
 ]
 
 blueprint_targets = []

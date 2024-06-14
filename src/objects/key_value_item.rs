@@ -62,6 +62,16 @@ impl KeyValueItem {
     }
 }
 
+impl KeyValueItem {
+    pub fn new(name: &str, value: &str) -> Self {
+        Object::builder()
+            .property("header-name", name)
+            .property("header-value", value)
+            .property("active", true)
+            .build()
+    }
+}
+
 impl Default for KeyValueItem {
     fn default() -> Self {
         Object::builder().build()
