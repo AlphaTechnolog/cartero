@@ -18,6 +18,8 @@
 subdir('icons')
 
 blueprint_files = [
+  'ui/collection_pane.blp',
+  'ui/collection_tree.blp',
   'ui/endpoint_pane.blp',
   'ui/main_window.blp',
   'ui/key_value_pane.blp',

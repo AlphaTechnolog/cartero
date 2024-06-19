@@ -15,26 +15,35 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use glib::subclass::types::ObjectSubclassIsExt;
 use glib::Object;
-use gtk::gio::{self, Settings};
+use gtk::gio::{self, ListModel, ListStore, Settings};
 
-use crate::client::Request;
-use crate::config::{APP_ID, BASE_ID};
+use crate::config::APP_ID;
+use crate::objects::Collection;
 use crate::win::CarteroWindow;
 
 mod imp {
+    use std::cell::OnceCell;
+
     use adw::prelude::*;
     use adw::subclass::application::AdwApplicationImpl;
+    use gio::ListStore;
     use glib::subclass::{object::ObjectImpl, types::ObjectSubclass};
+    use glib::Properties;
     use gtk::gio::Settings;
     use gtk::subclass::prelude::*;
     use gtk::subclass::{application::GtkApplicationImpl, prelude::ApplicationImpl};
 
     use super::*;
 
+    #[derive(Default, Properties)]
+    #[properties(wrapper_type = super::CarteroApplication)]
     pub struct CarteroApplication {
-        pub(super) settings: Settings,
+        #[property(get, construct_only)]
+        pub(super) settings: OnceCell<Settings>,
+
+        #[property(get, construct_only)]
+        pub(super) collections: OnceCell<ListStore>,
     }
 
     #[glib::object_subclass]
@@ -42,14 +51,9 @@ mod imp {
         const NAME: &'static str = "CarteroApplication";
         type Type = super::CarteroApplication;
         type ParentType = adw::Application;
-
-        fn new() -> Self {
-            Self {
-                settings: Settings::new(BASE_ID),
-            }
-        }
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for CarteroApplication {}
 
     impl ApplicationImpl for CarteroApplication {
@@ -87,18 +91,23 @@ impl Default for CarteroApplication {
 
 impl CarteroApplication {
     pub fn new() -> Self {
-        Object::builder().property("application-id", APP_ID).build()
+        let store = ListStore::new::<Collection>();
+        let collection = Collection::new_with_title("httpbin.org");
+        let collection2 = Collection::new_with_title("pokeapi");
+        let collection3 = Collection::new_with_title("random-d.uk");
+        store.extend_from_slice(&[collection, collection2, collection3]);
+
+        let settings = Settings::new(APP_ID);
+        Object::builder()
+            .property("application-id", APP_ID)
+            .property("settings", settings)
+            .property("collections", store)
+            .build()
     }
 
     pub fn get_window(&self) -> CarteroWindow {
         let win = CarteroWindow::new(self);
-        win.assign_settings(self.settings());
-
-        win.add_new_endpoint(None);
+        win.assign_settings(&self.settings());
         win
-    }
-
-    pub fn settings(&self) -> &Settings {
-        &self.imp().settings
     }
 }

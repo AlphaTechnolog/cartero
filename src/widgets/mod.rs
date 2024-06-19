@@ -15,12 +15,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod collection_pane;
+mod collection_tree;
 mod endpoint_pane;
 mod file_dialogs;
 mod key_value_pane;
 mod key_value_row;
 mod response_panel;
 
+pub use collection_pane::CollectionPane;
+pub use collection_tree::CollectionTree;
 pub use endpoint_pane::EndpointPane;
 pub use file_dialogs::*;
 pub use key_value_pane::KeyValuePane;

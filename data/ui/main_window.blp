@@ -23,7 +23,15 @@ template $CarteroWindow: Adw.ApplicationWindow {
   Adw.OverlaySplitView {
     sidebar: Adw.ToolbarView {
       [top]
-      Adw.HeaderBar {}
+      Adw.HeaderBar {
+        [title]
+        Label {
+          use-markup: true;
+          label: "Cartero";
+        }
+      }
+
+      $CarteroCollectionTree collections {}
     };
 
     content: Gtk.Box {
@@ -72,10 +80,7 @@ template $CarteroWindow: Adw.ApplicationWindow {
         }
 
         [title]
-        Label {
-          use-markup: true;
-          label: "<b>Cartero</b>";
-        }
+        Label main_label {}
 
         [end]
         MenuButton {

@@ -15,7 +15,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::{app::CarteroApplication, objects::Endpoint};
+use crate::{
+    app::CarteroApplication,
+    objects::{Collection, Endpoint},
+};
 use glib::subclass::types::ObjectSubclassIsExt;
 use glib::Object;
 use gtk::{
@@ -28,14 +31,16 @@ use gtk::prelude::ActionMapExt;
 use gtk::prelude::SettingsExt;
 
 mod imp {
-    use std::cell::RefCell;
-
+    use adw::prelude::*;
     use adw::subclass::application_window::AdwApplicationWindowImpl;
-    use gtk::gio::{ActionEntry, Settings};
-    use gtk::prelude::*;
+    use glib::Object;
+    use gtk::gio::ActionEntry;
+    use gtk::prelude::GtkWindowExt;
     use gtk::subclass::prelude::*;
+    use gtk::{Label, ListItem};
 
     use crate::app::CarteroApplication;
+    use crate::objects::Collection;
     use crate::widgets::*;
     use crate::{error::CarteroError, objects::Endpoint};
     use glib::subclass::InitializingObject;
@@ -54,6 +59,9 @@ mod imp {
 
         #[template_child]
         pub tabview: TemplateChild<adw::TabView>,
+
+        #[template_child]
+        pub collections: TemplateChild<CollectionTree>,
     }
 
     #[gtk::template_callbacks]
@@ -69,6 +77,55 @@ mod imp {
             Some(page)
         }
 
+        // Things that only can be done when an application is finally present.
+        pub(super) fn finish_init(&self) {
+            let obj = self.obj();
+            let application = obj
+                .application()
+                .and_downcast::<CarteroApplication>()
+                .unwrap();
+            let collections = application.collections();
+            let slice_collections = {
+                let mut vec = Vec::new();
+                for i in 0..(collections.n_items()) {
+                    let col = collections.item(i).and_downcast::<Collection>().unwrap();
+                    vec.push(col);
+                }
+                vec
+            };
+
+            self.collections.insert_collections(&slice_collections);
+
+            let factory = gtk::SignalListItemFactory::new();
+
+            factory.connect_setup(|_, obj: &Object| {
+                let item = obj.downcast_ref::<ListItem>().unwrap();
+                let label = Label::new(Some(""));
+                let bin = adw::Bin::new();
+                bin.set_child(Some(&label));
+                item.set_child(Some(&bin));
+            });
+            factory.connect_teardown(|_, obj: &Object| {
+                let item = obj.downcast_ref::<ListItem>().unwrap();
+                item.set_child(Option::<&gtk::Widget>::None);
+            });
+            factory.connect_bind(|_, obj: &Object| {
+                let item = obj.downcast_ref::<ListItem>().unwrap();
+                let widget = item.child().and_downcast::<adw::Bin>().unwrap();
+                let label = widget.child().and_downcast::<Label>().unwrap();
+                let collection = item.item().and_downcast::<Collection>().unwrap();
+                label.set_label(&collection.name());
+            });
+            factory.connect_unbind(|_, obj: &Object| {
+                let item = obj.downcast_ref::<ListItem>().unwrap();
+                let widget = item.child().and_downcast::<adw::Bin>().unwrap();
+                let label = widget.child().and_downcast::<Label>().unwrap();
+                label.set_label("");
+            });
+
+            // self.collections.set_factory(Some(&factory));
+        }
+
         pub fn add_new_endpoint(&self, ep: Option<Endpoint>) {
             // Take the tour in order to get a reference to the application settings.
             let obj = self.obj();
@@ -82,10 +139,17 @@ mod imp {
             if let Some(ep) = ep {
                 pane.assign_endpoint(ep);
             }
-            pane.bind_settings(settings);
+            pane.bind_settings(&settings);
 
             let page = self.tabview.add_page(&pane, None);
             page.set_title("request");
+            self.tabview.set_selected_page(&page);
+        }
+
+        pub fn open_collection_pane(&self, collection: &Collection) {
+            let pane = CollectionPane::new(collection);
+            let page = self.tabview.add_page(&pane, None);
+            page.set_title(&collection.name());
             self.tabview.set_selected_page(&page);
         }
 
@@ -205,7 +269,9 @@ glib::wrapper! {
 
 impl CarteroWindow {
     pub fn new(app: &CarteroApplication) -> Self {
-        Object::builder().property("application", Some(app)).build()
+        let win: CarteroWindow = Object::builder().property("application", Some(app)).build();
+        win.imp().finish_init();
+        win
     }
 
     pub fn assign_settings(&self, settings: &Settings) {
@@ -235,5 +301,10 @@ impl CarteroWindow {
     pub fn add_new_endpoint(&self, ep: Option<Endpoint>) {
         let imp = &self.imp();
         imp.add_new_endpoint(ep);
+    }
+
+    pub fn open_collection_pane(&self, collection: &Collection) {
+        let imp = &self.imp();
+        imp.open_collection_pane(collection);
     }
 }
