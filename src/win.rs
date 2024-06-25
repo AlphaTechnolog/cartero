@@ -67,6 +67,9 @@ mod imp {
 
         #[template_child]
         pub collections: TemplateChild<Sidebar>,
+
+        #[template_child]
+        toaster: TemplateChild<adw::ToastOverlay>,
     }
 
     #[gtk::template_callbacks]
@@ -87,6 +90,11 @@ mod imp {
             let page = self.tabview.selected_page()?;
             let page = page.child().downcast::<EndpointPane>().unwrap();
             Some(page)
+        }
+
+        fn toast_error(&self, error: CarteroError) {
+            let toast = adw::Toast::new(&error.to_string());
+            self.toaster.add_toast(toast);
         }
 
         pub fn add_new_endpoint(&self, ep: Option<Endpoint>) {
@@ -167,10 +175,7 @@ mod imp {
             let _ = settings.set("last-directory-open-collection", parent_dir);
 
             match open_collection(&path) {
-                Ok(col) => {
-                    println!("You are opening {}", col.title());
-                    self.finish_open_collection(&path)
-                }
+                Ok(_) => self.finish_open_collection(&path),
                 Err(e) => Err(e),
             }
         }
@@ -259,8 +264,7 @@ mod imp {
                 .activate(glib::clone!(@weak self as window => move |_, _, _| {
                     glib::spawn_future_local(glib::clone!(@weak window => async move {
                         if let Err(e) = window.trigger_new_collection().await {
-                            let error_msg = format!("{}", e);
-                            println!("{:?}", error_msg);
+                            window.toast_error(e);
                         }
                     }));
                 }))
@@ -270,8 +274,7 @@ mod imp {
                 .activate(glib::clone!(@weak self as window => move |_, _, _| {
                     glib::spawn_future_local(glib::clone!(@weak window => async move {
                         if let Err(e) = window.trigger_open_collection().await {
-                            let error_msg = format!("{}", e);
-                            println!("{:?}", error_msg);
+                            window.toast_error(e);
                         }
                     }));
                 }))
