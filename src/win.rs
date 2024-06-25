@@ -34,16 +34,17 @@ use gtk::prelude::ActionMapExt;
 use gtk::prelude::SettingsExt;
 
 mod imp {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use adw::prelude::*;
     use adw::subclass::application_window::AdwApplicationWindowImpl;
     use glib::closure_local;
-    use gtk::gio::{ActionEntry, Settings};
+    use gtk::gio::{ActionEntry, File, Settings};
     use gtk::prelude::GtkWindowExt;
     use gtk::subclass::prelude::*;
 
     use crate::app::CarteroApplication;
+    use crate::fs::collection::open_collection;
     use crate::objects::Collection;
     use crate::widgets::*;
     use crate::{error::CarteroError, objects::Endpoint};
@@ -143,27 +144,60 @@ mod imp {
             Ok(())
         }
 
-        pub fn finish_create_collection(&self, path: &PathBuf) -> Result<(), CarteroError> {
-            println!("Finish create collection: {:?}", path);
-
+        async fn trigger_open_collection(&self) -> Result<(), CarteroError> {
+            // Get last directory from settings
             let settings = self.settings();
+            let last_dir = settings
+                .get::<Option<String>>("last-directory-open-collection")
+                .unwrap_or("~/".into());
+            let last_dir_path = File::for_path(last_dir);
 
-            if let Some(new_initial_dir) = path.parent() {
-                let path_str = new_initial_dir.to_str();
-                let _ = settings.set("last-directory-new-collection", path_str);
+            // Request for the collection directory.
+            let dialog = gtk::FileDialog::new();
+            dialog.set_initial_folder(Some(&last_dir_path));
+            let window = &*self.obj();
+            let Ok(result) = dialog.select_folder_future(Some(window)).await else {
+                return Err(CarteroError::FileDialogError);
+            };
+
+            // Save this as the most recent directory for the last-directory-open-collection
+            let path = result.path().unwrap();
+            let parent_dir = path.parent().and_then(Path::to_str);
+            println!("{:?}", parent_dir);
+            let _ = settings.set("last-directory-open-collection", parent_dir);
+
+            match open_collection(&path) {
+                Ok(col) => {
+                    println!("You are opening {}", col.title());
+                    self.finish_open_collection(&path)
+                }
+                Err(e) => Err(e),
             }
+        }
 
-            let collection = Collection::new();
-            crate::fs::collection::save_collection(path, &collection)?;
+        /// Call this function to actually open a collection and add it to the sidebar
+        /// and to the recents list. Call to this function should be done always.
+        /// If you create a collection, just pass a pointer to the newly created
+        /// collection. If you open a collection, pass a pointer to the collection
+        /// that you are opening.
+        pub fn finish_open_collection(&self, path: &Path) -> Result<(), CarteroError> {
+            let settings = self.settings();
 
             // Update the open collections list.
             let mut value: Vec<String> = settings.get("open-collections");
-            let new_path = path
-                .clone()
-                .into_os_string()
-                .into_string()
-                .map_err(|_| CarteroError::FileDialogError)?;
-            value.push(new_path);
+            let Some(new_path) = path.to_str() else {
+                return Err(CarteroError::FileDialogError);
+            };
+            let new_path_str = new_path.to_string();
+
+            // Make sure that the collection is not already opened
+            let already_in = value.iter().any(|s| s == &new_path_str);
+            if already_in {
+                return Err(CarteroError::AlreadyOpened);
+            }
+
+            // Everything is fine
+            value.push(new_path_str);
             settings
                 .set("open-collections", value)
                 .map_err(|_| CarteroError::FileDialogError)?;
@@ -172,6 +206,21 @@ mod imp {
             self.collections.sync_collections(&settings);
 
             Ok(())
+        }
+
+        pub fn finish_create_collection(&self, path: &PathBuf) -> Result<(), CarteroError> {
+            println!("Finish create collection: {:?}", path);
+
+            let settings = self.settings();
+            if let Some(new_initial_dir) = path.parent() {
+                let path_str = new_initial_dir.to_str();
+                let _ = settings.set("last-directory-new-collection", path_str);
+            }
+
+            let collection = Collection::new();
+            crate::fs::collection::save_collection(path, &collection)?;
+
+            self.finish_open_collection(path)
         }
 
         fn init_sidebar(&self) {
@@ -217,8 +266,24 @@ mod imp {
                 }))
                 .build();
 
+            let action_open_collection = ActionEntry::builder("open-collection")
+                .activate(glib::clone!(@weak self as window => move |_, _, _| {
+                    glib::spawn_future_local(glib::clone!(@weak window => async move {
+                        if let Err(e) = window.trigger_open_collection().await {
+                            let error_msg = format!("{}", e);
+                            println!("{:?}", error_msg);
+                        }
+                    }));
+                }))
+                .build();
+
             let obj = self.obj();
-            obj.add_action_entries([action_new, action_request, action_new_collection]);
+            obj.add_action_entries([
+                action_new,
+                action_request,
+                action_new_collection,
+                action_open_collection,
+            ]);
         }
 
         pub(super) fn finish_init(&self) {

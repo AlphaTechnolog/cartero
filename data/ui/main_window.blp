@@ -64,6 +64,13 @@ template $CarteroWindow: Adw.ApplicationWindow {
 menu main_menu {
   section {
     item {
+      label: _("Open collection...");
+      action: "win.open-collection";
+    }
+  }
+
+  section {
+    item {
       label: _("Wrap bodies");
       action: "win.body-wrap";
     }
