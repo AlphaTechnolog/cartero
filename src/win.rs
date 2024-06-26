@@ -397,4 +397,12 @@ impl CarteroWindow {
         let imp = self.imp();
         imp.finish_create_collection(path)
     }
+
+    pub fn open_endpoint(&self, path: &str) -> Result<(), CarteroError> {
+        let contents = crate::file::read_file(&PathBuf::from(path))?;
+        let endpoint = crate::file::parse_toml(&contents)?;
+        let imp = self.imp();
+        imp.add_new_endpoint(Some(endpoint));
+        Ok(())
+    }
 }
