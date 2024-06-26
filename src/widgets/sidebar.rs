@@ -134,7 +134,7 @@ mod imp {
         }
 
         #[template_callback]
-        fn on_activate(list: ListView, pos: u32, data: &Object) {
+        fn on_activate(list: ListView, pos: u32, _data: &Object) {
             let window = list.root().and_downcast::<CarteroWindow>().unwrap();
             let Some(model) = list.model() else {
                 return;
@@ -147,7 +147,7 @@ mod imp {
 
             match inner_value.node_type() {
                 TreeNodeKind::Endpoint => {
-                    window.open_endpoint(&path);
+                    let _ = window.open_endpoint(&path);
                 }
                 _ => println!("Not implemented yet, wait a minute"),
             }

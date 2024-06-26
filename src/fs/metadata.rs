@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 
+use adw::prelude::ObjectExt;
 use glib::Object;
 use serde::{Deserialize, Serialize};
 
