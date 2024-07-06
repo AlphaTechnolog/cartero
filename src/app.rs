@@ -35,7 +35,7 @@ mod imp {
     use gtk::subclass::prelude::*;
     use gtk::subclass::{application::GtkApplicationImpl, prelude::ApplicationImpl};
 
-    use crate::widgets::{BasePayloadPane, RawPayloadPane};
+    use crate::widgets::{BasePayloadPane, NonePayloadPane, RawPayloadPane};
 
     use super::*;
 
@@ -71,6 +71,7 @@ mod imp {
             obj.setup_app_actions();
 
             BasePayloadPane::static_type();
+            NonePayloadPane::static_type();
             RawPayloadPane::static_type();
         }
     }
