@@ -187,7 +187,9 @@ mod imp {
 
             let url = String::from(self.request_url.buffer().text());
             let method = self.request_method();
-            let headers = header_list
+
+            let mut headers = self.payload_pane.get_headers();
+            let mut extra_headers = header_list
                 .iter()
                 .filter(|pair| pair.is_usable())
                 .map(|pair| KeyValue {
@@ -197,6 +199,7 @@ mod imp {
                     secret: pair.secret(),
                 })
                 .collect();
+            headers.append(&mut extra_headers);
             let variables = variable_list
                 .iter()
                 .filter(|v| v.is_usable())
