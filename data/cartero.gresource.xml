@@ -9,6 +9,7 @@
     <file alias="raw_payload_pane.ui" compressed="true" preprocess="xml-stripblanks">ui/raw_payload_pane.ui</file>
     <file alias="response_headers.ui" compressed="true" preprocess="xml-stripblanks">ui/response_headers.ui</file>
     <file alias="response_panel.ui" compressed="true" preprocess="xml-stripblanks">ui/response_panel.ui</file>
+    <file alias="urlencoded_payload_pane.ui" compressed="true" preprocess="xml-stripblanks">ui/urlencoded_payload_pane.ui</file>
     <file alias="style.css" compressed="true">style.css</file>
   </gresource>
 </gresources>
