@@ -47,20 +47,44 @@ template $CarteroResponsePanel: Adw.Bin {
               label: _("Body");
             };
 
-            child: ScrolledWindow {
+            child: Gtk.Overlay {
               hexpand: true;
               vexpand: true;
 
-              GtkSource.View response_body {
-                top-margin: 10;
-                bottom-margin: 10;
-                left-margin: 10;
-                right-margin: 10;
-                smart-backspace: true;
-                monospace: true;
+              [overlay]
+              Gtk.Entry jq_entry {
+                hexpand: true;
+                vexpand: false;
+                valign: end;
+                placeholder-text: "Type jq expression";
+                changed => $on_jq_entry_changed() swapped;
+              }
+
+              // Will store a copy of the buffer content
+
+              [overlay]
+              GtkSource.View tmp_response_body {
+                visible: false;
                 editable: false;
 
                 buffer: GtkSource.Buffer {};
+              }
+
+              ScrolledWindow {
+                hexpand: true;
+                vexpand: true;
+
+                GtkSource.View response_body {
+                  top-margin: 10;
+                  margin-bottom: 35;
+                  left-margin: 10;
+                  right-margin: 10;
+                  smart-backspace: true;
+                  monospace: true;
+                  editable: false;
+
+                  buffer: GtkSource.Buffer {};
+                }
               }
             };
           }

@@ -32,6 +32,9 @@ use glib::subclass::types::ObjectSubclassIsExt;
 
 mod imp {
     use std::cell::RefCell;
+    use std::io::{BufRead, BufReader, Read, Stdin, Write};
+    use std::process::{Command, Stdio};
+    use std::thread;
 
     use adw::prelude::*;
     use adw::subclass::bin::BinImpl;
@@ -44,7 +47,8 @@ mod imp {
         subclass::widget::{CompositeTemplateClass, CompositeTemplateInitializingExt, WidgetImpl},
         Box, CompositeTemplate, Label, TemplateChild,
     };
-    use gtk::{Spinner, Stack, WrapMode};
+    use gtk::{Entry, Spinner, Stack, WrapMode};
+    use serde_json::Value;
     use sourceview5::prelude::BufferExt;
     use sourceview5::StyleSchemeManager;
 
@@ -60,7 +64,11 @@ mod imp {
         #[template_child]
         pub response_headers: TemplateChild<ResponseHeaders>,
         #[template_child]
+        pub jq_entry: TemplateChild<Entry>,
+        #[template_child]
         pub response_body: TemplateChild<sourceview5::View>,
+        #[template_child]
+        pub tmp_response_body: TemplateChild<sourceview5::View>,
         #[template_child]
         pub response_meta: TemplateChild<Box>,
         #[template_child]
@@ -86,6 +94,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &InitializingObject<Self>) {
@@ -107,6 +116,7 @@ mod imp {
 
     impl BinImpl for ResponsePanel {}
 
+    #[gtk::template_callbacks]
     impl ResponsePanel {
         fn init_settings(&self) {
             let app = CarteroApplication::get();
@@ -178,6 +188,110 @@ mod imp {
                 self.response_meta.upcast_ref()
             };
             self.metadata_stack.set_visible_child(widget);
+        }
+
+        #[template_callback]
+        fn on_jq_entry_changed(&self) {
+            let json = String::from_utf8_lossy(&self.get_secondary_buffer_text()).to_string();
+            let expression = self.jq_entry.text().to_string();
+
+            let mut child = Command::new("jq")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .arg(expression)
+                .spawn()
+                .expect("Failed to spawn child jq process");
+
+            {
+                let stdin = child.stdin.as_mut().expect("Failed to open child stdin");
+
+                // this will prevent BrokenPipe errors.
+                if stdin.write_all(json.as_bytes()).is_err() {
+                    return;
+                }
+            }
+
+            let child_stdout = child.stdout.take().expect("Couldn't take stdout");
+            let (stdout_tx, stdout_rx) = std::sync::mpsc::channel();
+
+            let stdout_thread = thread::spawn(move || {
+                let stdout_lines = BufReader::new(child_stdout).lines();
+                for line in stdout_lines {
+                    let line = line.expect("Cannot read stdout line by line");
+                    stdout_tx.send(line).expect("Unable to send line of stdout");
+                }
+            });
+
+            let status = child.wait().expect("Cannot call wait() on child");
+
+            stdout_thread
+                .join()
+                .expect("Stdout collector thread failed");
+
+            let stdout = stdout_rx.into_iter().collect::<Vec<String>>().join("");
+
+            if !status.success() || stdout.is_empty() {
+                self.sync_response_buffers();
+                return;
+            }
+
+            println!("stdout is {}", stdout);
+
+            let json = serde_json::from_str(&stdout)
+                .and_then(|text: Value| serde_json::to_string_pretty(&text));
+
+            // if unparsable just fallback to regular stdout.
+            self.get_primary_buffer().set_text(&match json {
+                Ok(json) => json,
+                Err(_) => stdout,
+            });
+        }
+
+        /// Returns the primary buffer by performing a downcast
+        pub fn get_primary_buffer(&self) -> sourceview5::Buffer {
+            self.response_body
+                .buffer()
+                .downcast::<sourceview5::Buffer>()
+                .unwrap()
+        }
+
+        /// Returns the secondary buffer by performing a downcast
+        pub fn get_secondary_buffer(&self) -> sourceview5::Buffer {
+            self.tmp_response_body
+                .buffer()
+                .downcast::<sourceview5::Buffer>()
+                .unwrap()
+        }
+
+        /// Updates both the invisible and the visible buffer.
+        pub fn set_buffer_text(&self, contents: &str) {
+            self.get_primary_buffer().set_text(contents);
+            self.get_secondary_buffer().set_text(contents);
+        }
+
+        /// Gets the content of the given `sourceview5::Buffer`.
+        fn get_buffer_contents(&self, buffer: &sourceview5::Buffer) -> Vec<u8> {
+            let (start, end) = buffer.bounds();
+            let text = buffer.text(&start, &end, true);
+            Vec::from(text)
+        }
+
+        /// Gets the content of the visible buffer
+        pub fn get_primary_buffer_text(&self) -> Vec<u8> {
+            self.get_buffer_contents(&self.get_primary_buffer())
+        }
+
+        /// Gets the content of the invisible buffer
+        pub fn get_secondary_buffer_text(&self) -> Vec<u8> {
+            self.get_buffer_contents(&self.get_secondary_buffer())
+        }
+
+        /// Sets the visible buffer (primary buffer) content to the content on the
+        /// invisible one in order to synchronize them.
+        pub fn sync_response_buffers(&self) {
+            let contents = self.get_secondary_buffer_text();
+            let contents = String::from_utf8_lossy(&contents).to_string();
+            self.get_primary_buffer().set_text(&contents);
         }
     }
 }
@@ -266,20 +380,13 @@ impl ResponsePanel {
         imp.response_size.set_visible(true);
 
         imp.metadata_stack.set_visible_child(&*imp.response_meta);
-
-        let buffer = imp
-            .response_body
-            .buffer()
-            .downcast::<sourceview5::Buffer>()
-            .unwrap();
-
-        buffer.set_text(&resp.body_str());
+        imp.set_buffer_text(&resp.body_str());
 
         if resp.is_json() {
             let json = serde_json::from_str(&resp.body_str())
                 .and_then(|text: Value| serde_json::to_string_pretty(&text));
             if let Ok(json) = json {
-                buffer.set_text(&json);
+                imp.set_buffer_text(&json);
             }
         }
 
@@ -300,9 +407,7 @@ impl ResponsePanel {
                 })
         };
 
-        match language {
-            Some(language) => buffer.set_language(Some(&language)),
-            None => buffer.set_language(None),
-        };
+        // only set language on the displayed buffer.
+        imp.get_primary_buffer().set_language(language.as_ref());
     }
 }
