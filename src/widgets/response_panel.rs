@@ -20,7 +20,6 @@ use std::path::PathBuf;
 use glib::Object;
 use gtk::gio::{ListModel, ListStore};
 use gtk::glib;
-use gtk::prelude::TextViewExt;
 use gtk::prelude::*;
 use serde_json::Value;
 use sourceview5::prelude::BufferExt;
@@ -32,7 +31,7 @@ use glib::subclass::types::ObjectSubclassIsExt;
 
 mod imp {
     use std::cell::RefCell;
-    use std::io::{BufRead, BufReader, Read, Stdin, Write};
+    use std::io::{BufRead, BufReader, Write};
     use std::process::{Command, Stdio};
     use std::thread;
 
