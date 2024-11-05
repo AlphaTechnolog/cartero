@@ -1,10 +1,17 @@
 async function main() {
-    const response = await fetch("{{ url }}", {
-        method: "{{ method.to_lowercase() }}",
+    const request = await fetch("{{ url }}", {
+        method: "{{ method }}",
+        {%- if let Some(body) = body %}
+        body: JSON.stringify(`{{ body }}`),
+        {%- endif %}
+        {%- if !headers.is_empty() %}
+        headers: {
+            {%- for (key, val) in headers.iter() %}
+            "{{ key }}": "{{ val }}",
+            {%- endfor %}
+        },
+        {%- endif %}
     });
-
-    const data = await response.json();
-    console.log({ data });
 }
 
 main();

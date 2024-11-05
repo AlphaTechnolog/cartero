@@ -149,7 +149,9 @@ mod imp {
         pub(super) fn get_active_widget(&self) -> Option<BaseExportPane> {
             match self.export_type() {
                 ExportType::None => None,
-                ExportType::Curl | ExportType::JSFetch => Some(self.code.upcast_ref::<BaseExportPane>().clone()),
+                ExportType::Curl | ExportType::JSFetch => {
+                    Some(self.code.upcast_ref::<BaseExportPane>().clone())
+                }
             }
         }
     }

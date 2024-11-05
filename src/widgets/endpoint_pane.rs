@@ -138,10 +138,8 @@ mod imp {
             // update export pane data when user selects another option in the combo box.
             self.export_pane
                 .connect_changed(glib::clone!(@weak self as window => move |_| {
-                    if window.export_pane.imp().export_type() == ExportType::Curl {
-                        if let Ok(data) = window.extract_endpoint() {
-                            window.export_pane_load_endpoint_data(&data);
-                        }
+                    if window.export_pane.imp().export_type() != ExportType::None {
+                        window.update_export_pane();
                     }
                 }));
 
@@ -257,14 +255,13 @@ mod imp {
         fn export_pane_load_endpoint_data(&self, endpoint: &EndpointData) {
             let req_export_type = self.export_pane.request_export_type();
 
-            if let RequestExportType::None = req_export_type {
-                return;
-            }
-
-            if let RequestExportType::Curl(_) = req_export_type {
-                self.export_pane
-                    .set_request_export_type(&RequestExportType::Curl(endpoint.clone()));
-            }
+            // reassign the request export type but in this case by using the right data.
+            self.export_pane
+                .set_request_export_type(&match req_export_type {
+                    RequestExportType::Curl(_) => RequestExportType::Curl(endpoint.clone()),
+                    RequestExportType::JSFetch(_) => RequestExportType::JSFetch(endpoint.clone()),
+                    _ => return,
+                });
         }
 
         /// Retrieves `EndpointData` and builds a new state for the export request module.

@@ -129,28 +129,25 @@ mod imp {
         }
 
         fn format(&self) -> ExportType {
-            // Maybe in a future we're gonna add axios and others here, not sure
-            // if that thing should be in another widget or this could could be
-            // reutilized for that purpose, since we're just gonna use anyways a
-            // textbox, [axios export issue](https://github.com/danirod/cartero/issues/64)
+            // NOTE: Maybe for axios version, we could use jsx
+            // instead to be able to check which one is setted on the buffer.
+            if let Some(language) = self.buffer.language() {
+                return match language.name().to_string().as_str() {
+                    "JavaScript" => ExportType::JSFetch,
+                    "sh" => ExportType::Curl,
+                    _ => ExportType::Curl,
+                };
+            }
+
             ExportType::Curl
         }
 
         fn set_format(&self, format: ExportType) {
             let manager = LanguageManager::default();
 
-            let language_ids = manager
-                .language_ids()
-                .into_iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<String>>();
-
-            println!("{:?}", language_ids);
-
-            // TODO: I'm not really sure what the language id should be here,
-            // already tried bash shellscript sh shell etc.
             let language = match format {
-                ExportType::Curl => manager.language("shellscript"),
+                ExportType::Curl => manager.language("sh"),
+                ExportType::JSFetch => manager.language("js"),
                 _ => None,
             };
 
@@ -260,23 +257,36 @@ impl CodeExportPane {
 
 impl BaseExportPaneExt for CodeExportPane {
     fn request_export_type(&self) -> RequestExportType {
-        // TODO: Maybe we could extract url and others from the service which is
-        // gonna generate curl output or idk, like reparse the generated content
-        // to extract its data and regenerate a new endpoint data.
+        let default_endpoint_data = EndpointData::default();
+
         match self.format() {
-            super::ExportType::Curl => RequestExportType::Curl(EndpointData::default()),
+            super::ExportType::Curl => RequestExportType::Curl(default_endpoint_data),
+            super::ExportType::JSFetch => RequestExportType::JSFetch(default_endpoint_data),
             _ => RequestExportType::None,
         }
     }
 
     fn set_request_export_type(&self, req_export_type: &RequestExportType) {
-        if let RequestExportType::Curl(data) = req_export_type {
-            let service = CodeExportService::new(data.clone());
-            let imp = self.imp();
+        let imp = self.imp();
 
-            if let Ok(command) = service.into_curl_like() {
-                imp.set_buffer_content(command.as_bytes());
+        match req_export_type {
+            RequestExportType::Curl(data) => {
+                let service = CodeExportService::new(data.clone());
+
+                if let Ok(code) = service.into_curl_like() {
+                    imp.set_buffer_content(code.as_bytes());
+                }
             }
+
+            RequestExportType::JSFetch(data) => {
+                let service = CodeExportService::new(data.clone());
+
+                if let Ok(code) = service.into_jsfetch_like() {
+                    imp.set_buffer_content(code.as_bytes());
+                }
+            }
+
+            _ => {}
         }
     }
 }
