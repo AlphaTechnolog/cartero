@@ -224,6 +224,7 @@ pub enum RequestExportType {
     #[default]
     None,
     Curl(EndpointData),
+    JSFetch(EndpointData),
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]

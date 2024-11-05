@@ -59,6 +59,7 @@ mod templates {
     }
 
     generate_template_struct!(CurlTemplate, "curl");
+    generate_template_struct!(JSFetchTemplate, "javascript-fetch");
 }
 
 pub struct CodeExportService {
@@ -67,13 +68,20 @@ pub struct CodeExportService {
 
 impl CodeExportService {
     pub fn new(endpoint_data: EndpointData) -> Self {
-        Self { endpoint_data }
+        Self {
+            endpoint_data,
+        }
     }
 
     pub fn into_curl_like(&self) -> Result<String, CarteroError> {
         let bound_request = BoundRequest::try_from(self.endpoint_data.clone())?;
         let template: templates::CurlTemplate = bound_request.into();
+        template.render().map_err(|_| CarteroError::AskamaFailed)
+    }
 
+    pub fn into_jsfetch_like(&self) -> Result<String, CarteroError> {
+        let bound_request = BoundRequest::try_from(self.endpoint_data.clone())?;
+        let template: templates::CurlTemplate = bound_request.into();
         template.render().map_err(|_| CarteroError::AskamaFailed)
     }
 }

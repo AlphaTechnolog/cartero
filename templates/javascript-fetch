@@ -1,0 +1,10 @@
+async function main() {
+    const response = await fetch("{{ url }}", {
+        method: "{{ method.to_lowercase() }}",
+    });
+
+    const data = await response.json();
+    console.log({ data });
+}
+
+main();

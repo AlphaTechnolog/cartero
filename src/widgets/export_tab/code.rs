@@ -139,6 +139,14 @@ mod imp {
         fn set_format(&self, format: ExportType) {
             let manager = LanguageManager::default();
 
+            let language_ids = manager
+                .language_ids()
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
+
+            println!("{:?}", language_ids);
+
             // TODO: I'm not really sure what the language id should be here,
             // already tried bash shellscript sh shell etc.
             let language = match format {

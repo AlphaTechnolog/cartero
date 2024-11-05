@@ -30,12 +30,13 @@ pub enum ExportType {
     #[default]
     None,
     Curl,
+    JSFetch,
 }
 
 impl ExportType {
     pub fn types() -> &'static [ExportType] {
         static TYPES: OnceLock<Vec<ExportType>> = OnceLock::new();
-        TYPES.get_or_init(|| vec![ExportType::None, ExportType::Curl])
+        TYPES.get_or_init(|| vec![ExportType::None, ExportType::Curl, ExportType::JSFetch])
     }
 }
 
@@ -127,7 +128,7 @@ mod imp {
             let export_type = self.export_type();
             let tab = match export_type {
                 ExportType::None => "none",
-                ExportType::Curl => "code",
+                ExportType::Curl | ExportType::JSFetch => "code",
             };
 
             self.stack.set_visible_child_name(tab);
@@ -148,7 +149,7 @@ mod imp {
         pub(super) fn get_active_widget(&self) -> Option<BaseExportPane> {
             match self.export_type() {
                 ExportType::None => None,
-                ExportType::Curl => Some(self.code.upcast_ref::<BaseExportPane>().clone()),
+                ExportType::Curl | ExportType::JSFetch => Some(self.code.upcast_ref::<BaseExportPane>().clone()),
             }
         }
     }
@@ -177,13 +178,14 @@ impl ExportTab {
         imp.set_export_type(match req_export_type {
             RequestExportType::None => ExportType::None,
             RequestExportType::Curl(_) => ExportType::Curl,
+            RequestExportType::JSFetch(_) => ExportType::JSFetch,
         });
 
         let widget = imp.get_active_widget();
 
         match imp.export_type() {
             ExportType::None => {}
-            ExportType::Curl => {
+            ExportType::Curl | ExportType::JSFetch => {
                 let widget = widget.and_downcast::<CodeExportPane>().unwrap();
                 widget.set_request_export_type(req_export_type);
             }
@@ -196,7 +198,7 @@ impl ExportTab {
 
         match imp.export_type() {
             ExportType::None => RequestExportType::None,
-            ExportType::Curl => {
+            ExportType::Curl | ExportType::JSFetch => {
                 let widget = widget.and_downcast::<CodeExportPane>().unwrap();
                 widget.request_export_type()
             }
