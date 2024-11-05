@@ -2,7 +2,7 @@ async function main() {
     const request = await fetch("{{ url }}", {
         method: "{{ method }}",
         {%- if let Some(body) = body %}
-        body: JSON.stringify(`{{ body }}`),
+        body: `{{ body }}`,
         {%- endif %}
         {%- if !headers.is_empty() %}
         headers: {
