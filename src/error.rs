@@ -34,4 +34,7 @@ pub enum CarteroError {
 
     #[error("Outdated schema, please update the software")]
     OutdatedSchema,
+
+    #[error("Template generation error")]
+    AskamaFailed,
 }

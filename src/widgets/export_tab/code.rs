@@ -266,7 +266,7 @@ impl BaseExportPaneExt for CodeExportPane {
             let service = CodeExportService::new(data.clone());
             let imp = self.imp();
 
-            if let Ok(command) = service.generate() {
+            if let Ok(command) = service.into_curl_like() {
                 imp.set_buffer_content(command.as_bytes());
             }
         }

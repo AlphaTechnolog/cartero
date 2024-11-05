@@ -1,0 +1,11 @@
+{%- macro backslash(headers, index) %}
+{%- if index < headers.len() - 1 %} \{%- endif %}
+{%- endmacro -%}
+
+curl -X {{ method }} '{{ url }}'{% if !headers.is_empty() %} \
+{%- for (key, value) in headers.iter() %}
+  -H '{{ key }}: {{ value }}'{% call backslash(headers, loop.index0) -%}
+{%- endfor %}
+{%- endif %}{% if let Some(body) = body %} \
+  -d '{{ body }}'
+{%- endif %}
